@@ -15,7 +15,7 @@ Manage many of dependant propeties with ease.
 from collections.abc import Callable
 from collections import namedtuple, deque
 from abc import ABC
-from typing import TypeVar, Generic, List
+from typing import TypeVar, Generic, List, Any
 import queue
 import inspect
 
@@ -28,16 +28,16 @@ class PropertyDepot:
         self._properties = {}
         self._source_props = {}
         self._dependant_props = {}
-        self._updates = {}
+        self._updates: dict[SourceProperty, Any] = {}
         self._update_tick = 0
 
     def add_dependant_prop(self, property_: 'DependantProperty'):
-        self._dependant_props[property_._name] = property_
-        self._properties[property_._name] = property_
+        self._dependant_props[property_.name] = property_
+        self._properties[property_.name] = property_
 
     def add_source_prop(self, property_: 'SourceProperty'):
-        self._source_props[property_._name] = property_
-        self._properties[property_._name] = property_
+        self._source_props[property_.name] = property_
+        self._properties[property_.name] = property_
 
     def add_update(self, source_prop: 'SourceProperty', value):
         self._updates[source_prop] = value
@@ -48,9 +48,8 @@ class PropertyDepot:
     def update_properties(self, force_notify: bool = False):
         self._update_tick += 1
         for source_property, value in self._updates.items():
-            source_property._value = value #that
-            source_property._updated = self._update_tick #that
-            source_property._notify_subscribers() #and that should be in a single update call 
+            source_property._update(self._update_tick)
+        self._updates = {}
 
         if force_notify:
             for source_prop in self._source_props.values():
@@ -75,13 +74,17 @@ class PropertyDepot:
                     dependency_stack.pop()
                     current_dependant_prop._update(self._update_tick) #also notifies
 
+    def get_updates(self) -> List['SourceProperty']:
+        return self._updates.keys()
+
 T = TypeVar("T")
 class BaseProperty(ABC):
-     def __init__(self, name):
+     def __init__(self, name, data: Any = None):
         self._on_update_callbacks = []
         self._value = None
         self._updated = 0
-        self._name = name
+        self.name = name
+        self.data = data
 
      def subscribe(self, on_update: Callable[[T], None]):
         self._on_update_callbacks.append(on_update)
@@ -92,11 +95,12 @@ class BaseProperty(ABC):
 
 
 class SourceProperty(BaseProperty,  Generic[T]):
-    def __init__(self, pd: PropertyDepot, name: str, value: T):
-        super().__init__(name)
+    def __init__(self, pd: PropertyDepot, name: str, value: T, data: Any = None):
+        super().__init__(name, data)
         self._pd = pd
         self._pd.add_source_prop(self)
         self._value = value
+        self._new_value = None
 
     @property
     def value(self) -> T:
@@ -107,8 +111,15 @@ class SourceProperty(BaseProperty,  Generic[T]):
         if self._value == value:
             return
         self._pd.add_update(self, value)
+        self._new_value = value
         self._updated = False
         #notify subscribers
+
+    def _update(self, update_tick: int):
+        self._value = self._new_value
+        self._new_value = None
+        self._updated = update_tick
+        self._notify_subscribers()
 
 
 class DependantProperty(BaseProperty):
@@ -143,25 +154,25 @@ def testfunc(a: int, s: str) -> None:
     print(a, type(a))
     print(s, type(s))
 
-class MyData:
-    def __init__(self):
-        self.a: float = 5.0
-        self.s: str = 'hi'
+# class MyData:
+#     def __init__(self):
+#         self.a: float = 5.0
+#         self.s: str = 'hi'
 
-    def process_func(self, func):
-        sig = inspect.signature(func)
-        params = sig.parameters
-        data = {}
+#     def process_func(self, func):
+#         sig = inspect.signature(func)
+#         params = sig.parameters
+#         data = {}
 
-        for param in params.values():
-            if hasattr(self, param.name):
-                if param.annotation != type(getattr(self, param.name)):
-                    raise 'Wrong type'
-                data[param.name] = getattr(self, param.name)
+#         for param in params.values():
+#             if hasattr(self, param.name):
+#                 if param.annotation != type(getattr(self, param.name)):
+#                     raise 'Wrong type'
+#                 data[param.name] = getattr(self, param.name)
 
-            else:
-                raise 'No such attribute'
-        func(**data)
+#             else:
+#                 raise 'No such attribute'
+#         func(**data)
 
-mydata = MyData()
-mydata.process_func(testfunc)
+# mydata = MyData()
+# mydata.process_func(testfunc)
