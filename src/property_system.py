@@ -42,7 +42,7 @@ class PropertyDepot:
     def add_update(self, source_prop: 'SourceProperty', value):
         self._updates[source_prop] = value
 
-    def _get_signature_params(self, parameters):
+    def _get_signature_params(self, parameters) -> List['BaseProperty']:
         return [self._properties[name] for name in parameters]
 
     def update_properties(self, force_notify: bool = False):
@@ -106,6 +106,7 @@ class SourceProperty(BaseProperty,  Generic[T]):
     def value(self) -> T:
         return self._value
 
+    #Change behavior to track several changes. What to do with negative values?
     @value.setter
     def value(self, value: T):
         if self._value == value:
@@ -123,15 +124,23 @@ class SourceProperty(BaseProperty,  Generic[T]):
 
 
 class DependantProperty(BaseProperty):
-    def __init__(self, pd: PropertyDepot, name: str, func_dependency: Callable):#, *args: List[BaseProperty]):
+    def __init__(
+        self,
+        pd: PropertyDepot,
+        name: str,
+        func_dependency: Callable,
+        dependancy_names: List[str] | None = None,
+    ):#, *args: List[BaseProperty]):
         super().__init__(name)
         self._pd = pd
         self._pd.add_dependant_prop(self)
         self._update_tick = 0
 
         self._func_dependency = func_dependency
-        self._dependencies = pd._get_signature_params(inspect.signature(func_dependency).parameters)
-        print(self._dependencies)
+        if dependancy_names is not None:
+            self._dependencies = pd._get_signature_params(dependancy_names)
+        else:
+            self._dependencies = pd._get_signature_params(inspect.signature(func_dependency).parameters)
         
         #check args are properties (add when base class is ready)
 
