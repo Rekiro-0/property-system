@@ -146,7 +146,7 @@ class DependantProperty[T](BaseProperty[T]):
             self._dependencies = pd._get_signature_params(
                 inspect.signature(func_dependency).parameters
             )
-
+        self._update(self._update_tick)
         # check args are properties (add when base class is ready)
 
     @property

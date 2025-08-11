@@ -86,3 +86,10 @@ def test_callback() -> None:
 
     pd.update_properties(force_notify=True)
     assert result == "Hello, Bob!"
+
+
+def test_unupdated_dependant_property() -> None:
+    pd = PropertyDepot()
+    x = SourceProperty[int](pd, "x", 4)
+    y = DependantProperty[int](pd, "y", lambda x: x*4)
+    y.value == 16
