@@ -85,6 +85,9 @@ class BaseProperty[T](ABC):
     def subscribe(self, on_update: Callable[[T], None]) -> None:
         self._on_update_callbacks.append(on_update)
 
+    def clear_subscribers(self) -> None:
+        self._on_update_callbacks.clear()
+
     @abstractmethod
     def _update(self, update_tick: int) -> None:
         raise NotImplementedError
