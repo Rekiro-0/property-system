@@ -93,3 +93,12 @@ def test_unupdated_dependant_property() -> None:
     x = SourceProperty[int](pd, "x", 4)
     y = DependantProperty[int](pd, "y", lambda x: x*4)
     y.value == 16
+
+
+def test_source_property_change() -> None:
+    pd = PropertyDepot()
+    x = SourceProperty[int](pd, "x", 4)
+    x.value = 8
+    x.change(-1)
+    pd.update_properties()
+    assert x.value == 7

@@ -123,6 +123,20 @@ class SourceProperty[T](BaseProperty[T]):
         self._updated = False
         # notify subscribers
 
+    def change(self, value_of_change: T) -> None:
+        """Change property's value by `value_of_change` amount.
+        Works on unupdated/modified properties.
+
+        This mrthod supose that `T` has +- operations.
+        If I need more types then this mthod should be moved to new subclass.
+        """
+        # skip zero values
+        if not value_of_change:
+            return
+        self._new_value = self._new_value + value_of_change
+        self._pd.add_update(self, self._new_value)
+        self._updated = False
+
     def _update(self, update_tick: int) -> None:
         self._value = self._new_value
         self._updated = update_tick
